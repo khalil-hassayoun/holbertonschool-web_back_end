@@ -1,2 +1,1 @@
- - how to use redis for basic operations
- - how to use redis as a simple cache
+ 0x0B_redis_basic
