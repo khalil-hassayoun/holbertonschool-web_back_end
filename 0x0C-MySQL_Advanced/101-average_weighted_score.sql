@@ -1,40 +1,18 @@
--- a SQL script that creates a stored procedure
--- ComputeAverageWeightedScoreForUsers that
--- computes and store the average weighted score for all students.
-DROP PROCEDURE IF EXISTS ComputeAverageWeightedScoreForUser;
-
-DELIMITER //
-
-CREATE PROCEDURE ComputeAverageWeightedScoreForUser (IN user_id INT)
-BEGIN
-UPDATE users
-SET average_score = (SELECT SUM(score * (SELECT weight FROM projects WHERE id = corrections.project_id)) / (SELECT sum(weight) FROM projects) FROM corrections WHERE corrections.user_id = user_id) WHERE id = user_id;
-END//
-DELIMITER ;
-
-DELIMITER //
-
+DELIMITER $$
+DROP PROCEDURE IF EXISTS ComputeAverageWeightedScoreForUsers;
 CREATE PROCEDURE ComputeAverageWeightedScoreForUsers()
 BEGIN
+    DROP VIEW IF EXISTS users_stats;
+    CREATE VIEW users_stats AS
+    SELECT cor.user_id, (SUM(cor.score * pro.weight) / SUM(pro.weight)) as arg 
+    FROM corrections AS cor
+    JOIN projects AS pro ON pro.id = cor.project_id
+    GROUP BY cor.user_id;
 
-DECLARE finished INTEGER DEFAULT 0;
-DECLARE user_id INT;
-
-DECLARE curid CURSOR FOR SELECT id FROM users;
-
-DECLARE CONTINUE HANDLER
-      FOR NOT FOUND SET finished = 1;
-
-OPEN curid;
-
-getid: LOOP
-  FETCH curid INTO user_id;
-  IF finished = 1 THEN
-  LEAVE getEmail;
-  END IF;
-CALL ComputeAverageWeightedScoreForUser(user_id);
-END LOOP getid;
-CLOSE curid;
-
-END//
+    UPDATE users AS usr
+    SET average_score = (
+        SELECT arg FROM users_stats WHERE usr.id = user_id
+    );
+    DROP VIEW IF EXISTS users_stats;
+END$$
 DELIMITER ;
